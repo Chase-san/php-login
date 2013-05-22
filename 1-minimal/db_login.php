@@ -34,7 +34,7 @@ class Login {
         // 2. login via session data (happens each time user opens a page on your php project AFTER he has sucessfully logged in via the login form)
         // 3. login via post data, which means simply logging in via the login form. after the user has submit his login/password successfully, his
         //    logged-in-status is written into his session data on the server. this is the typical behaviour of common login scripts.
-        
+		
         // if user tried to log out
         if (isset($_GET["logout"])) {
 
@@ -70,50 +70,63 @@ class Login {
         // if POST data (from login form) contains non-empty user_name and non-empty user_password
         if (!empty($_POST['user_name']) && !empty($_POST['user_password'])) {
             
-            // create a database connection, using the constants from config/db.php (which we loaded in index.php)
-            $this->db_connection = new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+            // create a database connection, using the constants from db_config.php (which we loaded in index.php)
+			try {
+				$create_db = false;
+				
+				if(!file_exists(DB_FILENAME))
+					$create_db = true;
+					
+				$this->db_connection = new PDO('sqlite:'.DB_FILENAME);
+				
+				if($create_db)
+					$this->db_connection->exec(file_get_contents('schema.sql'));
+				
+				$this->db_connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+				
+				$this->db_connection->setAttribute(PDO::ATTR_EMULATE_PREPARES, false);
+				
+			} catch (PDOException $e) {
+			
+				$this->errors[] = "Database connection problem.";
+				
+				return;
+				
+			}
             
             // if no connection errors (= working database connection)
-            if (!$this->db_connection->connect_errno) {
-                
-                // escape the POST stuff
-                $this->user_name = $this->db_connection->real_escape_string($_POST['user_name']);            
-                // database query, getting all the info of the selected user
-                $checklogin = $this->db_connection->query("SELECT user_name, user_email, user_password_hash FROM users WHERE user_name = '".$this->user_name."';");
+		
+			// database query, getting all the info of the selected user
+			$statement = $this->db_connection->prepare('SELECT user_name, user_email, user_password_hash FROM users WHERE user_name = :username;');
 
-                // if this user exists
-                if ($checklogin->num_rows == 1) {
+			$statement->execute(array('username' => $_POST['user_name']));
+			
+			// if this user exists
+			// get result row (as an object)
+			if ( $result_row = $statement->fetchObject() ) {
 
-                    // get result row (as an object)
-                    $result_row = $checklogin->fetch_object();
+				// using PHP's crypt function to 
+				// this is currently (afaik) the best way to check passwords in login processes with PHP/SQL
+				if (crypt($_POST['user_password'], $result_row->user_password_hash) == $result_row->user_password_hash) {
 
-                    // using PHP's crypt function to 
-                    // this is currently (afaik) the best way to check passwords in login processes with PHP/SQL
-                    if (crypt($_POST['user_password'], $result_row->user_password_hash) == $result_row->user_password_hash) {
+					// write user data into PHP SESSION [a file on your server]
+					$_SESSION['user_name'] = $result_row->user_name;
+					$_SESSION['user_email'] = $result_row->user_email;
+					$_SESSION['user_logged_in'] = 1;
 
-                        // write user data into PHP SESSION [a file on your server]
-                        $_SESSION['user_name'] = $result_row->user_name;
-                        $_SESSION['user_email'] = $result_row->user_email;
-                        $_SESSION['user_logged_in'] = 1;
+					// set the login status to true
+					$this->user_is_logged_in = true; 
 
-                        // set the login status to true
-                        $this->user_is_logged_in = true; 
+				} else {
 
-                    } else {
+					$this->errors[] = "Wrong password. Try again.";
 
-                        $this->errors[] = "Wrong password. Try again.";
+				}                
 
-                    }                
+			} else {
 
-                } else {
-
-                    $this->errors[] = "This user does not exist.";
-                }
-                
-            } else {
-                
-                $this->errors[] = "Database connection problem.";
-            }
+				$this->errors[] = "This user does not exist.";
+			}
             
         } elseif (empty($_POST['user_name'])) {
 
@@ -135,7 +148,6 @@ class Login {
             session_destroy();
             $this->user_is_logged_in = false;
             $this->messages[] = "You have been logged out.";     
-            
     }
     
     /**

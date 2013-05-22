@@ -1,5 +1,7 @@
 # A simple PHP & MySQL Login Script #
 
+Converted to SQLITE via PDO
+
 Always find the latest version, a documentation and other stuff on the project website:
 http://www.php-login.net
 

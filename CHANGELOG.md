@@ -1,5 +1,8 @@
 # CHANGELOG #
 
+May 22, 2013
+* 1-minimal: Converted to use PDO and SQLite, very messy but it works correctly.
+
 May 18, 2013
 * 1-minimal: html5 form attributs that (optionally) validate the input fields on client's browsers:
 * 1-minimal: min/max length for email input fields

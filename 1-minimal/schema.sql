@@ -1,0 +1,6 @@
+CREATE TABLE [users] (
+[user_id] INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+[user_name] VARCHAR(64) UNIQUE NOT NULL,
+[user_password_hash] BLOB(118) NOT NULL,
+[user_email] VARCHAR(64) NOT NULL
+);
